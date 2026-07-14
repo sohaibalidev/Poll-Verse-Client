@@ -16,7 +16,7 @@ const CreatePoll: React.FC = () => {
   const navigate = useNavigate();
   const [pollData, setPollData] = useState<PollData>({
     name: '',
-    question: '',
+    question: '', 
     answers: ['', ''],
     multipleChoices: false,
     duration: 24,

@@ -14,7 +14,7 @@ const Home: React.FC = () => {
             <div className={styles.logoIcon}>
               <Zap size={48} className={styles.logoSpark} />
             </div>
-            <h1 className={styles.title}>Pollverse</h1>
+            <h1 className={styles.title}>Poll verse</h1>
           </div>
           <p className={styles.subtitle}>
             Create instant polls and get real-time results. Perfect for meetings, classrooms, and
