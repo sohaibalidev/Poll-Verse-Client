@@ -28,6 +28,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const socketUrl = BASE_URL.replace(/\/api\/?$/, '');
+    console.log(BASE_URL);
+    console.log(`[SOCKET] Connecting to ${socketUrl}`);
     const newSocket = io(socketUrl, {
       withCredentials: true,
       reconnection: true,
