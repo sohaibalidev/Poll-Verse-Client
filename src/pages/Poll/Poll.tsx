@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '@/context/SocketContext';
 import {
@@ -32,31 +32,78 @@ interface Poll {
 const Poll: React.FC = () => {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const { socket, joinPoll, leavePoll } = useSocket();
+  const { socket, isConnected, joinPoll, leavePoll } = useSocket();
 
   const [poll, setPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+
+  const fetchPoll = useCallback(async () => {
+    if (!code) return;
+
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`${BASE_URL}/polls/${code}`, {
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setPoll(data.data);
+        if (data.data.userVote) {
+          setSelectedOptions(data.data.userVote);
+          setHasVoted(true);
+        } else {
+          setSelectedOptions([]);
+          setHasVoted(false);
+        }
+      } else {
+        setError(data.message || 'Failed to fetch poll');
+      }
+    } catch (error) {
+      console.error('Error fetching poll:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch poll');
+    } finally {
+      setLoading(false);
+    }
+  }, [code]);
 
   useEffect(() => {
-    if (code) {
-      fetchPoll();
+    if (!code) {
+      setError('No poll code provided');
+      setLoading(false);
+      return;
+    }
+
+    fetchPoll();
+
+    if (socket && isConnected) {
       joinPoll(code);
     }
 
     return () => {
-      if (code) {
+      if (socket && isConnected && code) {
         leavePoll(code);
       }
     };
-  }, [code]);
+  }, [code, socket, isConnected, joinPoll, leavePoll, fetchPoll]);
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleVoteUpdate = (data: any) => {
+    const handleVoteUpdate = (data: { voteCounts: number[]; totalVotes: number }) => {
       setPoll((prev) =>
         prev
           ? {
@@ -75,52 +122,30 @@ const Poll: React.FC = () => {
     };
   }, [socket]);
 
-  const fetchPoll = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${BASE_URL}/polls/${code}`, {
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setPoll(data.data);
-        if (data.data.userVote) {
-          setSelectedOptions(data.data.userVote);
-        }
-      } else {
-        setError(data.message || 'Failed to fetch poll');
-      }
-    } catch (error) {
-      console.error('Error fetching poll:', error);
-      setError('Failed to fetch poll');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleOptionSelect = (index: number) => {
-    if (!poll || poll.userVote || !poll.isActive) return;
+    if (!poll || hasVoted || !poll.isActive) return;
 
-    if (poll.multipleChoices) {
-      setSelectedOptions((prev) =>
-        prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
-      );
-    } else {
-      setSelectedOptions([index]);
-    }
+    setSelectedOptions((prev) => {
+      if (poll.multipleChoices) {
+        return prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index];
+      } else {
+        return prev[0] === index ? [] : [index];
+      }
+    });
   };
 
-  const submitVote = async () => {
-    if (!poll || selectedOptions.length === 0 || !poll.isActive) return;
+  const submitVote = useCallback(async () => {
+    if (!poll || selectedOptions.length === 0 || !poll.isActive || hasVoted) return;
 
     try {
       setIsSubmitting(true);
+      setError('');
+
       const response = await fetch(`${BASE_URL}/polls/${code}/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -141,16 +166,17 @@ const Poll: React.FC = () => {
               }
             : null
         );
+        setHasVoted(true);
       } else {
-        alert(data.message || 'Failed to submit vote');
+        setError(data.message || 'Failed to submit vote');
       }
     } catch (error) {
       console.error('Error submitting vote:', error);
-      alert('Failed to submit vote');
+      setError(error instanceof Error ? error.message : 'Failed to submit vote');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [poll, selectedOptions, code, hasVoted]);
 
   const calculatePercentage = (votes: number, total: number): number => {
     if (total === 0) return 0;
@@ -173,7 +199,7 @@ const Poll: React.FC = () => {
     return `${minutes}m`;
   };
 
-  const getWinningOption = () => {
+  const getWinningOption = (): number => {
     if (!poll || poll.totalVotes === 0) return -1;
 
     const maxVotes = Math.max(...poll.voteCounts);
@@ -210,9 +236,9 @@ const Poll: React.FC = () => {
     );
   }
 
-  const hasVoted = !!poll.userVote;
   const showResults = hasVoted || !poll.isActive;
   const winningOption = getWinningOption();
+  const isExpired = new Date(poll.validTill).getTime() <= Date.now();
 
   return (
     <div className={styles.container}>
@@ -225,7 +251,7 @@ const Poll: React.FC = () => {
                 <Vote size={16} />
                 Code: <span>{poll.code}</span>
               </div>
-              <div className={`${styles.timer} ${!poll.isActive ? styles.expired : ''}`}>
+              <div className={`${styles.timer} ${isExpired ? styles.expired : ''}`}>
                 <Clock size={16} />
                 {getTimeRemaining(poll.validTill)}
               </div>
@@ -241,11 +267,17 @@ const Poll: React.FC = () => {
               Multiple choices allowed
             </div>
           )}
+          {!poll.isActive && (
+            <div className={styles.pollInactive}>
+              <AlertCircle size={16} />
+              This poll is no longer accepting votes
+            </div>
+          )}
         </div>
 
         <div className={styles.answers}>
           {poll.answers.map((answer, index) => {
-            const votes = poll.voteCounts[index];
+            const votes = poll.voteCounts[index] || 0;
             const percentage = calculatePercentage(votes, poll.totalVotes);
             const isSelected = selectedOptions.includes(index);
             const isUserVote = hasVoted && poll.userVote?.includes(index);
@@ -258,6 +290,15 @@ const Poll: React.FC = () => {
                   isSelected ? styles.selected : ''
                 } ${isUserVote ? styles.userVote : ''} ${isWinning ? styles.winning : ''}`}
                 onClick={() => !showResults && handleOptionSelect(index)}
+                role="button"
+                tabIndex={!showResults ? 0 : -1}
+                aria-label={`${answer} - ${showResults ? `${percentage}%` : 'Click to select'}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    !showResults && handleOptionSelect(index);
+                  }
+                }}
               >
                 <div className={styles.answerHeader}>
                   <div className={styles.answerText}>
@@ -285,6 +326,10 @@ const Poll: React.FC = () => {
                       <div
                         className={styles.progressFill}
                         style={{ width: `${percentage}%` }}
+                        role="progressbar"
+                        aria-valuenow={percentage}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
                       ></div>
                     </div>
                   </div>
@@ -298,8 +343,9 @@ const Poll: React.FC = () => {
           <div className={styles.voteSection}>
             <button
               onClick={submitVote}
-              disabled={selectedOptions.length === 0 || isSubmitting}
+              disabled={selectedOptions.length === 0 || isSubmitting || isExpired}
               className={styles.voteButton}
+              aria-label="Submit vote"
             >
               {isSubmitting ? (
                 <>
@@ -309,8 +355,8 @@ const Poll: React.FC = () => {
               ) : (
                 <>
                   <Vote size={20} />
-                  <span>Vote</span>{' '}
-                  {selectedOptions.length > 0 && `(${selectedOptions.length} selected)`}
+                  <span>Vote</span>
+                  {selectedOptions.length > 0 && ` (${selectedOptions.length} selected)`}
                 </>
               )}
             </button>

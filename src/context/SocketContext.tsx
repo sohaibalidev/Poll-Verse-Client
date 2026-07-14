@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { BASE_URL } from '@/config';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -26,20 +27,19 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const socketUrl =
-      import.meta.env.VITE_BACKEND_URL || "http://192.168.100.4:3000";
+    const socketUrl = BASE_URL.replace('api', '');
     const newSocket = io(socketUrl, {
       withCredentials: true,
     });
 
-    newSocket.on("connect", () => {
+    newSocket.on('connect', () => {
       setIsConnected(true);
-      console.log("Connected to server");
+      console.log('Connected to server');
     });
 
-    newSocket.on("disconnect", () => {
+    newSocket.on('disconnect', () => {
       setIsConnected(false);
-      console.log("Disconnected from server");
+      console.log('Disconnected from server');
     });
 
     setSocket(newSocket);
@@ -51,20 +51,19 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
   const joinPoll = (pollCode: string) => {
     if (socket) {
-      socket.emit("joinPoll", pollCode);
+      socket.emit('joinPoll', pollCode);
+      console.log(`Joining poll with code: ${pollCode}`);
     }
   };
 
   const leavePoll = (pollCode: string) => {
     if (socket) {
-      socket.emit("leavePoll", pollCode);
+      socket.emit('leavePoll', pollCode);
     }
   };
 
   return (
-    <SocketContext.Provider
-      value={{ socket, isConnected, joinPoll, leavePoll }}
-    >
+    <SocketContext.Provider value={{ socket, isConnected, joinPoll, leavePoll }}>
       {children}
     </SocketContext.Provider>
   );
