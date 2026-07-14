@@ -139,7 +139,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, pollCode, poll
                   >
                     <Mail size={18} />
                   </button>
-                  {typeof navigator !== 'undefined' && navigator.share && (
+                  {typeof navigator.share === 'function' && (
                     <button
                       onClick={handleNativeShare}
                       className={styles.socialButton}
