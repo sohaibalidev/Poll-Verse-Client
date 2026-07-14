@@ -148,7 +148,7 @@ const Home: React.FC = () => {
           transition={{ duration: 0.6, delay: 1 }}
         >
           <div className={styles.footerContent}>
-            <span>© 2024 PollVerse</span>
+            <span>© {new Date().getFullYear()} PollVerse</span>
           </div>
         </motion.div>
       </div>
