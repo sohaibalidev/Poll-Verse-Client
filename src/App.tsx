@@ -4,11 +4,11 @@ import AppRoutes from './Routes';
 import './styles/global.css';
 
 const App = () => (
-    <SocketProvider>
-        <Router>
-            <AppRoutes />
-        </Router>
-    </SocketProvider>
+  <SocketProvider>
+    <Router>
+      <AppRoutes />
+    </Router>
+  </SocketProvider>
 );
 
 export default App;

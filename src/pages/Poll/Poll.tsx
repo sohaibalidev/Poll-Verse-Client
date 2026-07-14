@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '@/context/SocketContext';
 import {
@@ -55,6 +55,9 @@ const Poll: React.FC = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Poll not found');
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -122,17 +125,20 @@ const Poll: React.FC = () => {
     };
   }, [socket]);
 
-  const handleOptionSelect = (index: number) => {
-    if (!poll || hasVoted || !poll.isActive) return;
+  const handleOptionSelect = useCallback(
+    (index: number) => {
+      if (!poll || hasVoted || !poll.isActive) return;
 
-    setSelectedOptions((prev) => {
-      if (poll.multipleChoices) {
-        return prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index];
-      } else {
-        return prev[0] === index ? [] : [index];
-      }
-    });
-  };
+      setSelectedOptions((prev) => {
+        if (poll.multipleChoices) {
+          return prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index];
+        } else {
+          return prev[0] === index ? [] : [index];
+        }
+      });
+    },
+    [poll, hasVoted]
+  );
 
   const submitVote = useCallback(async () => {
     if (!poll || selectedOptions.length === 0 || !poll.isActive || hasVoted) return;
@@ -178,12 +184,12 @@ const Poll: React.FC = () => {
     }
   }, [poll, selectedOptions, code, hasVoted]);
 
-  const calculatePercentage = (votes: number, total: number): number => {
+  const calculatePercentage = useCallback((votes: number, total: number): number => {
     if (total === 0) return 0;
     return Math.round((votes / total) * 100);
-  };
+  }, []);
 
-  const getTimeRemaining = (validTill: string): string => {
+  const getTimeRemaining = useCallback((validTill: string): string => {
     const now = new Date().getTime();
     const end = new Date(validTill).getTime();
     const diff = end - now;
@@ -197,9 +203,9 @@ const Poll: React.FC = () => {
       return `${hours}h ${minutes}m`;
     }
     return `${minutes}m`;
-  };
+  }, []);
 
-  const getWinningOption = (): number => {
+  const getWinningOption = useCallback((): number => {
     if (!poll || poll.totalVotes === 0) return -1;
 
     const maxVotes = Math.max(...poll.voteCounts);
@@ -207,7 +213,16 @@ const Poll: React.FC = () => {
 
     const isTie = poll.voteCounts.filter((votes) => votes === maxVotes).length > 1;
     return isTie ? -1 : winningIndex;
-  };
+  }, [poll]);
+
+  const showResults = useMemo(() => hasVoted || !poll?.isActive, [hasVoted, poll?.isActive]);
+
+  const isExpired = useMemo(
+    () => (poll ? new Date(poll.validTill).getTime() <= Date.now() : false),
+    [poll]
+  );
+
+  const winningOption = useMemo(() => getWinningOption(), [getWinningOption]);
 
   if (loading) {
     return (
@@ -235,10 +250,6 @@ const Poll: React.FC = () => {
       </div>
     );
   }
-
-  const showResults = hasVoted || !poll.isActive;
-  const winningOption = getWinningOption();
-  const isExpired = new Date(poll.validTill).getTime() <= Date.now();
 
   return (
     <div className={styles.container}>

@@ -12,6 +12,7 @@
     "download": "git fetch origin && git reset --hard origin/main && git clean -fd && echo 'Project updated from GitHub'"
   },
   "dependencies": {
+    "framer-motion": "^12.42.2",
     "lucide-react": "^0.552.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

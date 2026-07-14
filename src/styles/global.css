@@ -179,14 +179,14 @@ input:checked + .toggle-slider:before {
 }
 
 .error-message {
-  background: var(--error);
-  color: var(--text);
+  background: rgba(239, 83, 80, 0.15);
+  color: var(--error);
   padding: 14px;
   border-radius: var(--border-radius);
   margin-bottom: 1.5rem;
   text-align: center;
   font-weight: 600;
-  border-left: 4px solid #ff6b6b;
+  border: 1px solid rgba(239, 83, 80, 0.3);
 }
 
 .success-message {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Plus, X, Clock, Settings2, FileText } from 'lucide-react';
 import { BASE_URL } from '@/config';
 import { useNavigate } from 'react-router-dom';
@@ -12,77 +12,123 @@ interface PollData {
   duration: number;
 }
 
+const MIN_ANSWERS = 2;
+const MAX_ANSWERS = 10;
+const MIN_DURATION = 1;
+const MAX_DURATION = 720;
+
 const CreatePoll: React.FC = () => {
   const navigate = useNavigate();
   const [pollData, setPollData] = useState<PollData>({
     name: '',
-    question: '', 
+    question: '',
     answers: ['', ''],
     multipleChoices: false,
     duration: 24,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const addAnswer = () => {
-    if (pollData.answers.length < 10) {
-      setPollData({
-        ...pollData,
-        answers: [...pollData.answers, ''],
-      });
+  const validAnswers = useMemo(
+    () => pollData.answers.filter((answer) => answer.trim().length > 0),
+    [pollData.answers]
+  );
+
+  const canAddAnswer = useMemo(
+    () => pollData.answers.length < MAX_ANSWERS,
+    [pollData.answers.length]
+  );
+
+  const canRemoveAnswer = useMemo(
+    () => pollData.answers.length > MIN_ANSWERS,
+    [pollData.answers.length]
+  );
+
+  const isFormValid = useMemo(() => {
+    const nameValid = pollData.name.trim().length > 0;
+    const questionValid = pollData.question.trim().length > 0;
+    const answersValid = validAnswers.length >= MIN_ANSWERS;
+    const durationValid = pollData.duration >= MIN_DURATION && pollData.duration <= MAX_DURATION;
+    return nameValid && questionValid && answersValid && durationValid;
+  }, [pollData.name, pollData.question, validAnswers.length, pollData.duration]);
+
+  const addAnswer = useCallback(() => {
+    if (canAddAnswer) {
+      setPollData((prev) => ({
+        ...prev,
+        answers: [...prev.answers, ''],
+      }));
     }
-  };
+  }, [canAddAnswer]);
 
-  const updateAnswer = (index: number, value: string) => {
-    const newAnswers = [...pollData.answers];
-    newAnswers[index] = value;
-    setPollData({ ...pollData, answers: newAnswers });
-  };
+  const updateAnswer = useCallback((index: number, value: string) => {
+    setPollData((prev) => {
+      const newAnswers = [...prev.answers];
+      newAnswers[index] = value;
+      return { ...prev, answers: newAnswers };
+    });
+  }, []);
 
-  const removeAnswer = (index: number) => {
-    if (pollData.answers.length > 2) {
-      const newAnswers = pollData.answers.filter((_, i) => i !== index);
-      setPollData({ ...pollData, answers: newAnswers });
+  const removeAnswer = useCallback(
+    (index: number) => {
+      if (canRemoveAnswer) {
+        setPollData((prev) => ({
+          ...prev,
+          answers: prev.answers.filter((_, i) => i !== index),
+        }));
+      }
+    },
+    [canRemoveAnswer]
+  );
+
+  const handleDurationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const hours = parseInt(e.target.value) || 0;
+    if (hours >= MIN_DURATION && hours <= MAX_DURATION) {
+      setPollData((prev) => ({ ...prev, duration: hours }));
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError('');
 
-    try {
-      const validAnswers = pollData.answers.filter((answer) => answer.trim());
-
-      if (validAnswers.length < 2) {
-        alert('Please provide at least 2 answers');
+      if (!isFormValid) {
+        setError('Please fill in all required fields correctly');
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/polls`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...pollData,
-          answers: validAnswers,
-        }),
-      });
+      setIsSubmitting(true);
 
-      const data = await response.json();
+      try {
+        const response = await fetch(`${BASE_URL}/polls`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            ...pollData,
+            answers: validAnswers,
+          }),
+        });
 
-      if (data.success) {
-        navigate(`/poll/${data.data.code}`);
-      } else {
-        alert(data.message || 'Failed to create poll');
+        const data = await response.json();
+
+        if (data.success) {
+          navigate(`/poll/${data.data.code}`);
+        } else {
+          setError(data.message || 'Failed to create poll');
+        }
+      } catch (error) {
+        console.error('Error creating poll:', error);
+        setError('Failed to create poll. Please try again.');
+      } finally {
+        setIsSubmitting(false);
       }
-    } catch (error) {
-      console.error('Error creating poll:', error);
-      alert('Failed to create poll');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+    [pollData, validAnswers, isFormValid, navigate]
+  );
 
   return (
     <div className={styles.container}>
@@ -96,6 +142,8 @@ const CreatePoll: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
+          {error && <div className={styles.errorMessage}>{error}</div>}
+
           <div className={styles.formGroup}>
             <label className={styles.label}>
               <FileText size={18} className={styles.labelIcon} />
@@ -104,9 +152,10 @@ const CreatePoll: React.FC = () => {
             <input
               type="text"
               value={pollData.name}
-              onChange={(e) => setPollData({ ...pollData, name: e.target.value })}
+              onChange={(e) => setPollData((prev) => ({ ...prev, name: e.target.value }))}
               className={styles.input}
               placeholder="Enter a name for your poll"
+              maxLength={100}
               required
             />
           </div>
@@ -119,9 +168,10 @@ const CreatePoll: React.FC = () => {
             <input
               type="text"
               value={pollData.question}
-              onChange={(e) => setPollData({ ...pollData, question: e.target.value })}
+              onChange={(e) => setPollData((prev) => ({ ...prev, question: e.target.value }))}
               className={styles.input}
               placeholder="What would you like to ask?"
+              maxLength={500}
               required
             />
           </div>
@@ -131,7 +181,7 @@ const CreatePoll: React.FC = () => {
               <Plus size={18} className={styles.labelIcon} />
               <span>Answer Options</span>
               <span className={styles.optionCount}>
-                {pollData.answers.filter((a) => a.trim()).length}/10
+                {validAnswers.length}/{MAX_ANSWERS}
               </span>
             </label>
             <div className={styles.answersList}>
@@ -144,14 +194,15 @@ const CreatePoll: React.FC = () => {
                     onChange={(e) => updateAnswer(index, e.target.value)}
                     className={styles.input}
                     placeholder={`Option ${index + 1}`}
-                    required={index < 2}
+                    maxLength={200}
+                    required={index < MIN_ANSWERS}
                   />
-                  {pollData.answers.length > 2 && (
+                  {canRemoveAnswer && (
                     <button
                       type="button"
                       onClick={() => removeAnswer(index)}
                       className={styles.removeButton}
-                      title="Remove option"
+                      aria-label={`Remove option ${index + 1}`}
                     >
                       <X size={16} />
                     </button>
@@ -159,13 +210,8 @@ const CreatePoll: React.FC = () => {
                 </div>
               ))}
             </div>
-            {pollData.answers.length < 10 && (
-              <button
-                type="button"
-                onClick={addAnswer}
-                className={styles.addButton}
-                disabled={pollData.answers.length >= 10}
-              >
+            {canAddAnswer && (
+              <button type="button" onClick={addAnswer} className={styles.addButton}>
                 <Plus size={18} />
                 Add Option
               </button>
@@ -188,10 +234,10 @@ const CreatePoll: React.FC = () => {
                   type="checkbox"
                   checked={pollData.multipleChoices}
                   onChange={(e) =>
-                    setPollData({
-                      ...pollData,
+                    setPollData((prev) => ({
+                      ...prev,
                       multipleChoices: e.target.checked,
-                    })
+                    }))
                   }
                 />
                 <span className={styles.toggleSlider}></span>
@@ -204,7 +250,7 @@ const CreatePoll: React.FC = () => {
                 <div>
                   <div className={styles.settingLabel}>Poll Duration</div>
                   <div className={styles.settingDescription}>
-                    Set how long the poll should stay active
+                    Set how long the poll should stay active (1-720 hours)
                   </div>
                 </div>
               </div>
@@ -212,16 +258,10 @@ const CreatePoll: React.FC = () => {
                 <input
                   type="number"
                   value={pollData.duration}
-                  onChange={(e) => {
-                    const hours = parseInt(e.target.value) || 0;
-                    if (hours >= 1 && hours <= 24) {
-                      setPollData({ ...pollData, duration: hours });
-                    }
-                  }}
+                  onChange={handleDurationChange}
                   className={styles.durationInput}
-                  min="1"
-                  max="24"
-                  placeholder="24"
+                  min={MIN_DURATION}
+                  max={MAX_DURATION}
                 />
                 <span className={styles.durationUnit}>hours</span>
               </div>
@@ -233,7 +273,11 @@ const CreatePoll: React.FC = () => {
             Poll will automatically expire after the selected duration
           </div>
 
-          <button type="submit" disabled={isSubmitting} className={styles.submitButton}>
+          <button
+            type="submit"
+            disabled={isSubmitting || !isFormValid}
+            className={styles.submitButton}
+          >
             {isSubmitting ? (
               <>
                 <div className={styles.spinner}></div>

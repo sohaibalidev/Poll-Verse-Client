@@ -1,5 +1,5 @@
 import { BASE_URL } from '@/config';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface SocketContextType {
@@ -27,40 +27,64 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const socketUrl = BASE_URL.replace('api', '');
+    const socketUrl = BASE_URL.replace(/\/api\/?$/, '');
     const newSocket = io(socketUrl, {
       withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000,
+      transports: ['websocket', 'polling'],
     });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      console.log('Connected to server');
+      console.log('[SOCKET] Connected to server');
     });
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
-      console.log('Disconnected from server');
+      console.log('[SOCKET] Disconnected from server');
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('[SOCKET] Connection error:', error);
+      setIsConnected(false);
+    });
+
+    newSocket.on('reconnect', (attempt) => {
+      console.log(`[SOCKET] Reconnected after ${attempt} attempts`);
     });
 
     setSocket(newSocket);
 
     return () => {
-      newSocket.disconnect();
+      if (newSocket.connected) {
+        newSocket.disconnect();
+      }
+      newSocket.removeAllListeners();
     };
   }, []);
 
-  const joinPoll = (pollCode: string) => {
-    if (socket) {
-      socket.emit('joinPoll', pollCode);
-      console.log(`Joining poll with code: ${pollCode}`);
-    }
-  };
+  const joinPoll = useCallback(
+    (pollCode: string) => {
+      if (socket && isConnected) {
+        socket.emit('joinPoll', pollCode);
+      } else {
+        console.warn('[SOCKET] Cannot join poll - socket not connected');
+      }
+    },
+    [socket, isConnected]
+  );
 
-  const leavePoll = (pollCode: string) => {
-    if (socket) {
-      socket.emit('leavePoll', pollCode);
-    }
-  };
+  const leavePoll = useCallback(
+    (pollCode: string) => {
+      if (socket && isConnected) {
+        socket.emit('leavePoll', pollCode);
+      }
+    },
+    [socket, isConnected]
+  );
 
   return (
     <SocketContext.Provider value={{ socket, isConnected, joinPoll, leavePoll }}>

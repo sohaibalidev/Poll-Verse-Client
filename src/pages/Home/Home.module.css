@@ -199,6 +199,17 @@
   opacity: 1;
 }
 
+.errorMessage {
+  color: var(--error);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  position: absolute;
+  bottom: -1.75rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
 .features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

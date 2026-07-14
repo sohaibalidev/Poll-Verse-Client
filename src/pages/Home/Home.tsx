@@ -1,10 +1,41 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Zap, Clock, ArrowRight } from 'lucide-react';
 import styles from './Home.module.css';
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState('');
+  const [error, setError] = useState('');
+
+  const handleJoin = useCallback(() => {
+    const trimmedCode = joinCode.trim().toUpperCase();
+    if (trimmedCode.length === 8 && /^[A-Z0-9]{8}$/.test(trimmedCode)) {
+      navigate(`/poll/${trimmedCode}`);
+    } else {
+      setError('Please enter a valid 8-character poll code');
+      setTimeout(() => setError(''), 3000);
+    }
+  }, [joinCode, navigate]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleJoin();
+      }
+    },
+    [handleJoin]
+  );
+
+  const handleCodeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      setJoinCode(value);
+      if (error) setError('');
+    },
+    [error]
+  );
 
   return (
     <div className={styles.container}>
@@ -33,19 +64,25 @@ const Home: React.FC = () => {
                   type="text"
                   placeholder="Enter poll code"
                   value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  onChange={handleCodeChange}
+                  onKeyDown={handleKeyDown}
                   className={styles.codeInput}
                   maxLength={8}
+                  aria-label="Poll code"
+                  aria-invalid={!!error}
                 />
                 <div className={styles.inputGlow}></div>
+                {error && <div className={styles.errorMessage}>{error}</div>}
               </div>
-              <Link
-                to={joinCode ? `/poll/${joinCode}` : '#'}
-                className={`${styles.secondaryButton} ${!joinCode ? styles.disabled : ''}`}
+              <button
+                onClick={handleJoin}
+                disabled={joinCode.length !== 8}
+                className={`${styles.secondaryButton} ${joinCode.length !== 8 ? styles.disabled : ''}`}
+                aria-label="Join poll"
               >
                 Join Poll
                 <ArrowRight size={18} className={styles.buttonIcon} />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
