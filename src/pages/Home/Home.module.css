@@ -345,3 +345,20 @@
     right: 0.75rem;
   }
 }
+
+.dashboardLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+}
+
+.dashboardLink:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}

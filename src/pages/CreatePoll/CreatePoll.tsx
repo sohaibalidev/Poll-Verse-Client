@@ -1,10 +1,11 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Plus, X, Clock, Settings2, FileText } from 'lucide-react';
 import { BASE_URL } from '@/config';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { motion } from 'framer-motion';
+import { usePollHistory } from '@/context/PollHistoryContext';
 import styles from './CreatePoll.module.css';
 
 interface PollData {
@@ -21,7 +22,9 @@ const MIN_DURATION = 1;
 const MAX_DURATION = 720;
 
 const CreatePoll: React.FC = () => {
+  const location = useLocation();
   const navigate = useNavigate();
+  const { addPoll } = usePollHistory();
   const [pollData, setPollData] = useState<PollData>({
     name: '',
     question: '',
@@ -46,6 +49,21 @@ const CreatePoll: React.FC = () => {
     () => pollData.answers.length > MIN_ANSWERS,
     [pollData.answers.length]
   );
+
+  useEffect(() => {
+    if (location.state) {
+      const { name, question, answers, multipleChoices, duration } =
+        location.state as Partial<PollData>;
+      setPollData((prev) => ({
+        ...prev,
+        name: name || prev.name,
+        question: question || prev.question,
+        answers: answers || prev.answers,
+        multipleChoices: multipleChoices || prev.multipleChoices,
+        duration: duration || prev.duration,
+      }));
+    }
+  }, [location.state]);
 
   const isFormValid = useMemo(() => {
     const nameValid = pollData.name.trim().length > 0;
@@ -119,6 +137,17 @@ const CreatePoll: React.FC = () => {
         const data = await response.json();
 
         if (data.success) {
+          addPoll({
+            id: data.data.id,
+            code: data.data.code,
+            name: data.data.name,
+            question: data.data.question,
+            createdAt: new Date().toISOString(),
+            totalVotes: 0,
+            isActive: true,
+            validTill: data.data.validTill,
+          });
+
           confetti({
             particleCount: 100,
             spread: 70,
@@ -136,28 +165,39 @@ const CreatePoll: React.FC = () => {
         setIsSubmitting(false);
       }
     },
-    [pollData, validAnswers, isFormValid, navigate]
+    [pollData, validAnswers, isFormValid, navigate, addPoll]
   );
 
   return (
     <div className={styles.container}>
-      <div className={styles.themeWrapper}>
-        <ThemeToggle />
-      </div>
-
-      <div className={styles.card}>
-        <div className={styles.header}>
+      <motion.div
+        className={styles.card}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div
+          className={styles.header}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
           <div className={styles.titleSection}>
             <FileText size={32} className={styles.titleIcon} />
             <h1 className={styles.title}>Create a New Poll</h1>
           </div>
           <p className={styles.subtitle}>Set up your poll with questions, options, and settings</p>
-        </div>
+        </motion.div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
           {error && <div className={styles.errorMessage}>{error}</div>}
 
-          <div className={styles.formGroup}>
+          <motion.div
+            className={styles.formGroup}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
             <label className={styles.label}>
               <FileText size={18} className={styles.labelIcon} />
               <span>Poll Name</span>
@@ -171,9 +211,14 @@ const CreatePoll: React.FC = () => {
               maxLength={100}
               required
             />
-          </div>
+          </motion.div>
 
-          <div className={styles.formGroup}>
+          <motion.div
+            className={styles.formGroup}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+          >
             <label className={styles.label}>
               <Settings2 size={18} className={styles.labelIcon} />
               <span>Poll Question</span>
@@ -187,9 +232,14 @@ const CreatePoll: React.FC = () => {
               maxLength={500}
               required
             />
-          </div>
+          </motion.div>
 
-          <div className={styles.formGroup}>
+          <motion.div
+            className={styles.formGroup}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+          >
             <label className={styles.label}>
               <Plus size={18} className={styles.labelIcon} />
               <span>Answer Options</span>
@@ -199,7 +249,13 @@ const CreatePoll: React.FC = () => {
             </label>
             <div className={styles.answersList}>
               {pollData.answers.map((answer, index) => (
-                <div key={index} className={styles.answerItem}>
+                <motion.div
+                  key={index}
+                  className={styles.answerItem}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 * index }}
+                >
                   <div className={styles.answerNumber}>{index + 1}</div>
                   <input
                     type="text"
@@ -220,18 +276,29 @@ const CreatePoll: React.FC = () => {
                       <X size={16} />
                     </button>
                   )}
-                </div>
+                </motion.div>
               ))}
             </div>
             {canAddAnswer && (
-              <button type="button" onClick={addAnswer} className={styles.addButton}>
+              <motion.button
+                type="button"
+                onClick={addAnswer}
+                className={styles.addButton}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
                 <Plus size={18} />
                 Add Option
-              </button>
+              </motion.button>
             )}
-          </div>
+          </motion.div>
 
-          <div className={styles.settingsGroup}>
+          <motion.div
+            className={styles.settingsGroup}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
             <div className={styles.settingItem}>
               <div className={styles.settingInfo}>
                 <Settings2 size={20} className={styles.settingIcon} />
@@ -279,17 +346,24 @@ const CreatePoll: React.FC = () => {
                 <span className={styles.durationUnit}>hours</span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          <div className={styles.helpText}>
+          <motion.div
+            className={styles.helpText}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.7 }}
+          >
             <Clock size={16} />
             Poll will automatically expire after the selected duration
-          </div>
+          </motion.div>
 
-          <button
+          <motion.button
             type="submit"
             disabled={isSubmitting || !isFormValid}
             className={styles.submitButton}
+            whileHover={!isSubmitting && isFormValid ? { scale: 1.02 } : {}}
+            whileTap={!isSubmitting && isFormValid ? { scale: 0.98 } : {}}
           >
             {isSubmitting ? (
               <>
@@ -299,9 +373,9 @@ const CreatePoll: React.FC = () => {
             ) : (
               'Create Poll'
             )}
-          </button>
+          </motion.button>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 };

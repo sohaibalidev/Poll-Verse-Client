@@ -74,6 +74,7 @@ body {
   text-align: center;
   position: relative;
   overflow: hidden;
+  outline: none;
 }
 
 .btn-primary {
@@ -249,11 +250,6 @@ input:checked + .toggle-slider:before {
   color: var(--primary-color);
 }
 
-*:focus {
-  outline: 2px solid var(--primary-accent);
-  outline-offset: 2px;
-}
-
 .card,
 .btn,
 .form-input,
@@ -293,5 +289,23 @@ input:checked + .toggle-slider:before {
   .btn {
     padding: 12px 20px;
     font-size: 15px;
+  }
+}
+
+.app-container {
+  position: relative;
+}
+
+.global-theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .global-theme-toggle {
+    top: 0.75rem;
+    right: 0.75rem;
   }
 }
