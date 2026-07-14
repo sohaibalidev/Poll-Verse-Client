@@ -1,4 +1,4 @@
-import { BASE_URL, SOCKET_URL } from '@/config';
+import { SOCKET_URL } from '@/config';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
