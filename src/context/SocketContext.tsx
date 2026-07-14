@@ -1,4 +1,4 @@
-import { BASE_URL } from '@/config';
+import { BASE_URL, SOCKET_URL } from '@/config';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -27,10 +27,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const socketUrl = BASE_URL.replace(/\/api\/?$/, '');
-    console.log(BASE_URL);
-    console.log(`[SOCKET] Connecting to ${socketUrl}`);
-    const newSocket = io(socketUrl, {
+    const newSocket = io(SOCKET_URL, {
       withCredentials: true,
       reconnection: true,
       reconnectionAttempts: 5,
