@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { BASE_URL } from '@/config';
 import styles from './Poll.module.css';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface Poll {
   id: string;
@@ -255,6 +256,9 @@ const Poll: React.FC = () => {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
+          <div className={styles.themeWrapper}>
+            <ThemeToggle />
+          </div>
           <div className={styles.pollInfo}>
             <h1 className={styles.pollName}>{poll.name}</h1>
             <div className={styles.pollMeta}>

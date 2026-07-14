@@ -2,6 +2,9 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Plus, X, Clock, Settings2, FileText } from 'lucide-react';
 import { BASE_URL } from '@/config';
 import { useNavigate } from 'react-router-dom';
+import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import styles from './CreatePoll.module.css';
 
 interface PollData {
@@ -116,13 +119,19 @@ const CreatePoll: React.FC = () => {
         const data = await response.json();
 
         if (data.success) {
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 },
+          });
+          toast.success('Poll created successfully!');
           navigate(`/poll/${data.data.code}`);
         } else {
-          setError(data.message || 'Failed to create poll');
+          toast.error(data.message || 'Failed to create poll');
         }
       } catch (error) {
         console.error('Error creating poll:', error);
-        setError('Failed to create poll. Please try again.');
+        toast.error('Failed to create poll. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
@@ -132,6 +141,10 @@ const CreatePoll: React.FC = () => {
 
   return (
     <div className={styles.container}>
+      <div className={styles.themeWrapper}>
+        <ThemeToggle />
+      </div>
+
       <div className={styles.card}>
         <div className={styles.header}>
           <div className={styles.titleSection}>

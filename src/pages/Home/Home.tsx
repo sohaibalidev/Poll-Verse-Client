@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Zap, Clock, ArrowRight } from 'lucide-react';
+import { Zap, ArrowRight, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import styles from './Home.module.css';
 
 const Home: React.FC = () => {
@@ -39,34 +41,64 @@ const Home: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.hero}>
-        <div className={styles.content}>
-          <div className={styles.logoSection}>
-            <div className={styles.logoIcon}>
-              <Zap size={48} className={styles.logoSpark} />
-            </div>
-            <h1 className={styles.title}>Poll verse</h1>
-          </div>
-          <p className={styles.subtitle}>
-            Create instant polls and get real-time results. Perfect for meetings, classrooms, and
-            social gatherings.
-          </p>
+      <div className={styles.themeWrapper}>
+        <ThemeToggle />
+      </div>
 
-          <div className={styles.actions}>
+      <div className={styles.hero}>
+        <motion.div
+          className={styles.content}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className={styles.logoSection}>
+            <motion.div
+              className={styles.logoIcon}
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Zap size={48} className={styles.logoSpark} />
+            </motion.div>
+            <h1 className={styles.title}>PollVerse</h1>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <p className={styles.subtitle}>
+              Create instant polls and get real-time results. Perfect for meetings, classrooms, and
+              social gatherings. <span className={styles.highlight}>No sign-up required.</span>
+            </p>
+          </motion.div>
+
+          <motion.div
+            className={styles.actions}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
             <Link to="/create" className={styles.primaryButton}>
+              <Sparkles size={20} />
               Create a Poll
               <ArrowRight size={20} className={styles.buttonIcon} />
             </Link>
+
+            <div className={styles.divider}>
+              <span>or join existing poll</span>
+            </div>
 
             <div className={styles.joinSection}>
               <div className={styles.inputWrapper}>
                 <input
                   type="text"
-                  placeholder="Enter poll code"
+                  placeholder="Enter poll code (e.g. ABC12345)"
                   value={joinCode}
                   onChange={handleCodeChange}
                   onKeyDown={handleKeyDown}
-                  className={styles.codeInput}
+                  className={`${styles.codeInput} ${error ? styles.error : ''}`}
                   maxLength={8}
                   aria-label="Poll code"
                   aria-invalid={!!error}
@@ -84,23 +116,12 @@ const Home: React.FC = () => {
                 <ArrowRight size={18} className={styles.buttonIcon} />
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
-        <div className={styles.features}>
-          <div className={styles.feature}>
-            <div className={styles.featureIcon}>
-              <Zap size={32} className={styles.icon} />
-            </div>
-            <h3>Instant Results</h3>
-            <p>See live updates as votes come in</p>
-          </div>
-          <div className={styles.feature}>
-            <div className={styles.featureIcon}>
-              <Clock size={32} className={styles.icon} />
-            </div>
-            <h3>Time Limited</h3>
-            <p>Polls automatically expire after 24 hours</p>
+        <div className={styles.footer}>
+          <div className={styles.footerContent}>
+            <span>© 2024 PollVerse</span>
           </div>
         </div>
       </div>
